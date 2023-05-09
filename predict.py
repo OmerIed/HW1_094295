@@ -17,7 +17,7 @@ if len(sys.argv) != 2:
 directory_path=sys.argv[1]
 
 def drop_redundent(df):
-  df.drop(['Unit1','Unit2','ICULOS','HospAdmTime'],axis=1, inplace=True)
+  df.drop(['Unit1','Unit2','ICULOS'],axis=1, inplace=True)
   return df
 
 def aggregation(df):
@@ -41,7 +41,6 @@ def aggregation(df):
     statistics[patient]['count']=patient_count
     statistics[patient]['Age']=pat_desc["Age"][1]
     statistics[patient]['Gender']=pat_desc["Gender"][1]
-    statistics[patient]['SepsisLabel']=pat_desc["SepsisLabel"][7]
     for col in freq:
       stat_list = pat_desc[col].fillna(-999).tolist()
       statistics[patient][f"mean {col}"] = stat_list[1]
@@ -59,20 +58,9 @@ def aggregation(df):
       stat_list = pat_desc[col].fillna(-999).tolist()
       statistics[patient][f"max {col}"] = stat_list[7]
       statistics[patient][f"min {col}"] = stat_list[3]
+    statistics[patient]['HospAdmTime'] = pat_desc["HospAdmTime"][1]
   df_conc = pd.DataFrame.from_dict(statistics,orient="index")
   return df_conc
-
-def data_and_labels(df):
-  #creating targets vector
-  labels = []
-  for patient in df["patient"].unique():
-    sep_vec = df[df["patient"]==patient]["SepsisLabel"]
-    if sum(sep_vec) > 0:
-      labels.append(1)
-    else: 
-      labels.append(0)
-  df = df.drop(['patient','SepsisLabel'],axis=1)
-  return df.to_numpy(), np.array(labels)
 
 def categorial_imputation(df,rare):
   for col in rare:
@@ -114,25 +102,34 @@ def extract_to_df(directory_path):
   return df_test
 
 df_test = extract_to_df(directory_path)
-patient_list = df_test['patient']
+print('-----extracted to df-------')
 df_test = drop_redundent(df_test)
 df_test = aggregation(df_test)
+print('------finished aggregation------')
 miss_alot = [ 'max EtCO2','min EtCO2','max BaseExcess','min BaseExcess','max HCO3','min HCO3','max FiO2',
  'min FiO2','max pH','min pH','max PaCO2','min PaCO2','max SaO2','min SaO2','max AST','min AST',
  'max Alkalinephos','min Alkalinephos','max Chloride','min Chloride','max Bilirubin_direct',
  'min Bilirubin_direct','max Lactate','min Lactate','max Bilirubin_total','min Bilirubin_total',
  'max TroponinI','min TroponinI','max PTT','min PTT','max Fibrinogen', 'min Fibrinogen']
 df_test = categorial_imputation(df_test,miss_alot)
-df_test = mean_imputation(df_test)
-##y_test?!? which format is the data?
-X_test, y_test = data_and_labels(df_test)
+df_test = mean_imputation(df_test) 
+df_test.to_csv('temp_for_failure.csv',index=False)
+
+df_test = pd.read_csv('temp_for_failure.csv')
+patient_list = df_test['patient']
+X_test = df_test.drop(['patient'],axis=1).to_numpy()
 
 file_name = "xgb_model_final.pkl"
 # load
 xgb_model = pickle.load(open(file_name, "rb"))
-y_preds = xgb_model.predictproba(X_test)
+print('-----Loaded model, starting prediction------')
+y_preds = xgb_model.predict_proba(X_test)
 y_pred_binary = [1 if p[1] >= 0.38 else 0 for p in y_preds]
 df_preds = pd.DataFrame({'id':patient_list, 'prediction':y_pred_binary})
-df_preds.to_csv('prediction.csv', index=False)
-print(df_preds.iloc[:15])
+df_sorted = df_preds.sort_values('id')
+
+df_sorted['id'] = df_sorted['id'].apply(lambda x: f'patient_{str(x)}')
+# sort the dataframe by id_num column
+
+df_sorted.to_csv('prediction.csv', index=False)
 
