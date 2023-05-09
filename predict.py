@@ -4,7 +4,7 @@ import sys
 import os
 import random 
 import pickle
-
+import xgboost
 # Set the random seed for numpy
 np.random.seed(42)
 # Set the random seed for Python's built-in random module
@@ -113,9 +113,9 @@ miss_alot = [ 'max EtCO2','min EtCO2','max BaseExcess','min BaseExcess','max HCO
  'max TroponinI','min TroponinI','max PTT','min PTT','max Fibrinogen', 'min Fibrinogen']
 df_test = categorial_imputation(df_test,miss_alot)
 df_test = mean_imputation(df_test) 
-df_test.to_csv('temp_for_failure.csv',index=False)
+#df_test.to_csv('temp_for_failure.csv',index=False)
 
-df_test = pd.read_csv('temp_for_failure.csv')
+#df_test = pd.read_csv('temp_for_failure.csv')
 patient_list = df_test['patient']
 X_test = df_test.drop(['patient'],axis=1).to_numpy()
 
