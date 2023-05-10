@@ -117,6 +117,7 @@ df_test = mean_imputation(df_test)
 
 #df_test = pd.read_csv('temp_for_failure.csv')
 patient_list = df_test['patient']
+patient_list = [int(x) for x in patient_list]
 X_test = df_test.drop(['patient'],axis=1).to_numpy()
 
 file_name = "final_model.pkl"
@@ -126,10 +127,14 @@ print('-----Loaded model, starting prediction------')
 y_preds = xgb_model.predict_proba(X_test)
 y_pred_binary = [1 if p[1] >= 0.34 else 0 for p in y_preds]
 df_preds = pd.DataFrame({'id':patient_list, 'prediction':y_pred_binary})
-df_sorted = df_preds.sort_values('id')
 
-df_sorted['id'] = df_sorted['id'].apply(lambda x: f'patient_{str(x)}')
+df_preds['id'] = df_preds['id'].apply(lambda x: f'patient_{str(x)}')
+df_preds['id_num'] = df_preds['id'].str.split('_').str[-1].astype(int)
+
 # sort the dataframe by id_num column
+df_sorted = df_preds.sort_values('id_num')
 
+# drop the id_num column if not needed
+df_sorted = df_sorted.drop('id_num', axis=1)
 df_sorted.to_csv('prediction.csv', index=False)
 
