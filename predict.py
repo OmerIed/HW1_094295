@@ -41,8 +41,9 @@ def aggregation(df):
     statistics[patient]['count']=patient_count
     statistics[patient]['Age']=pat_desc["Age"][1]
     statistics[patient]['Gender']=pat_desc["Gender"][1]
+    statistics[patient]['HospAdmTime'] = pat_desc["HospAdmTime"][1]
     for col in freq:
-      stat_list = pat_desc[col].fillna(-999).tolist()
+      stat_list = pat_desc[col].tolist()
       statistics[patient][f"mean {col}"] = stat_list[1]
       statistics[patient][f"Q1 {col}"] = stat_list[4]
       statistics[patient][f"Q2 {col}"] = stat_list[5]
@@ -55,10 +56,10 @@ def aggregation(df):
       statistics[patient][f"p3 {col}"] = df[df["patient"]==patient][col].iloc[int(patient_count/2):int((3*patient_count)/4)].mean()
       statistics[patient][f"p4 {col}"] = df[df["patient"]==patient][col].iloc[int((3*patient_count)/4):int(patient_count)].mean()
     for col in rare:
-      stat_list = pat_desc[col].fillna(-999).tolist()
+      stat_list = pat_desc[col].tolist()
       statistics[patient][f"max {col}"] = stat_list[7]
       statistics[patient][f"min {col}"] = stat_list[3]
-    statistics[patient]['HospAdmTime'] = pat_desc["HospAdmTime"][1]
+    
   df_conc = pd.DataFrame.from_dict(statistics,orient="index")
   return df_conc
 
@@ -69,7 +70,7 @@ def categorial_imputation(df,rare):
     for patient in df["patient"]:
       # print(df[df["patient"]==patient][col])
       val = df[df["patient"]==patient][col].iloc[0]
-      if val == -999:
+      if val == np.nan:
         df.loc[df['patient'] == patient,col]=0
       elif val>=col_desc[3] and val<col_desc[4]:
         df.loc[df['patient'] == patient,col]= 1
@@ -82,7 +83,6 @@ def categorial_imputation(df,rare):
   return df
 
 def mean_imputation(df):
-  df = df.replace(-999,np.nan)
   col_mean = df.mean()
   df_imp = df.fillna(col_mean)
   return df_imp
@@ -119,12 +119,12 @@ df_test = mean_imputation(df_test)
 patient_list = df_test['patient']
 X_test = df_test.drop(['patient'],axis=1).to_numpy()
 
-file_name = "xgb_model_final.pkl"
+file_name = "final_model.pkl"
 # load
 xgb_model = pickle.load(open(file_name, "rb"))
 print('-----Loaded model, starting prediction------')
 y_preds = xgb_model.predict_proba(X_test)
-y_pred_binary = [1 if p[1] >= 0.38 else 0 for p in y_preds]
+y_pred_binary = [1 if p[1] >= 0.34 else 0 for p in y_preds]
 df_preds = pd.DataFrame({'id':patient_list, 'prediction':y_pred_binary})
 df_sorted = df_preds.sort_values('id')
 
